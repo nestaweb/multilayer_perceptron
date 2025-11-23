@@ -1,0 +1,190 @@
+import random
+import numpy as np
+import math
+import pandas as pd
+import csv
+
+class Layer():
+	def __init__(self, input_size, output_size, activation="sigmoid", learning_rate=0.05):
+		self.activation = activation
+		self.learning_rate = learning_rate
+		self.W = np.random.uniform(-0.5, 0.5, (input_size, output_size))
+        
+		self.b = np.random.uniform(-0.1, 0.1, (output_size,))
+        
+		self.z = None
+		self.a = None
+
+	def sigmoid(self, x):
+		x = np.clip(x, -500, 500)
+		return 1 / (1 + np.exp(-x))
+
+	def forward(self, input_activation):
+		self.z = (input_activation @ self.W) + self.b
+		self.a_prev = input_activation
+		if (self.activation == "softmax"):
+			self.a = self.softmax(self.z)
+		else:
+			self.a = self.sigmoid(self.z)
+
+		return self.a
+
+	def softmax(self, x):
+		e_x = np.exp(x - np.max(x))
+		return e_x / e_x.sum()
+
+	def backprop(self, delta):
+		# Reshape for matrix mult to avoid errors of different shape genre 16 != 2
+		delta = delta.reshape(-1, 1)
+		a_prev = self.a_prev.reshape(-1, 1)
+		
+		self.dW = a_prev @ delta.T
+		self.db = delta.ravel()
+		delta_prev = self.W @ delta
+		return delta_prev.ravel()
+
+	def update_weights(self):
+		self.W -= self.learning_rate * self.dW
+		self.b -= self.learning_rate * self.db
+
+class MLP():
+	def __init__(self, dataset_path, layers_sizes, epochs):
+		self.dataset_path = dataset_path
+		self.layers = []
+		self.data = []
+		self.epochs = epochs
+		self.init_network(layers_sizes)
+
+	def open_dataset(self, validation_split=0.2):
+		df = pd.read_csv(self.dataset_path)
+		float_df = df.select_dtypes(include=['float64'])
+		object_df = df.select_dtypes(include=['object'])
+		raw_result = object_df.values.ravel()
+		raw_data = float_df.values.tolist()
+		
+		data = np.array(raw_data)
+		data = data / data.max(axis=0)
+		
+		split_idx = int(len(data) * (1 - validation_split))
+		self.train_data = data[:split_idx]
+		self.train_targets = raw_result[:split_idx]
+		self.val_data = data[split_idx:]
+		self.val_targets = raw_result[split_idx:]
+
+	def init_network(self, layers_sizes):
+		for i in range(len(layers_sizes) - 1):
+			input_size = layers_sizes[i]
+			output_size = layers_sizes[i+1]
+			activation = "sigmoid"
+			learning_rate = 0.1
+			if (len(layers_sizes) - 2 == i):
+				activation = "softmax"
+			self.layers.append(Layer(input_size, output_size, activation, learning_rate))
+
+	def feedforward(self, row_data):
+		activation = row_data
+		for layer in self.layers:
+			activation = layer.forward(activation)
+		return activation
+
+	def backprop(self, target):
+		if target == 'B':
+			target_vector = np.array([1.0, 0.0])
+		elif target == 'M':
+			target_vector = np.array([0.0, 1.0])
+		else:
+			raise ValueError(f"Unknown target label: {target}")
+		delta = self.layers[-1].a - target_vector
+		for layer in reversed(self.layers):
+			delta = layer.backprop(delta)
+
+	def compute_loss(self, data, targets):
+		total_loss = 0
+		for i, row_data in enumerate(data):
+			prediction = self.feedforward(row_data)
+			target = targets[i]
+			
+			if target == 'B':
+				target_vector = np.array([1.0, 0.0])
+			else:
+				target_vector = np.array([0.0, 1.0])
+			
+			# Cross entropy ici
+			total_loss += -np.sum(target_vector * np.log(prediction + 1e-10))
+		
+		return total_loss / len(data)
+
+	def evaluate(self, data, targets):
+		correct = 0
+		for i, row_data in enumerate(data):
+			prediction = self.feedforward(row_data)
+			predicted_class = np.argmax(prediction)
+			
+			true_class = 0 if targets[i] == 'B' else 1
+			
+			if predicted_class == true_class:
+				correct += 1
+		
+		accuracy = correct / len(data) * 100
+		return accuracy
+	
+	def show_loss(self, epoch):
+		loss = self.compute_loss(self.train_data, self.train_targets)
+		val_loss = self.compute_loss(self.val_data, self.val_targets)
+		train_acc = self.evaluate(self.train_data, self.train_targets)
+		val_acc = self.evaluate(self.val_data, self.val_targets)
+		
+		print(f'epoch {epoch}/{self.epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f} - acc: {train_acc:.2f}% - val_acc: {val_acc:.2f}%')
+
+	def train(self):
+		initial_lr = 0.1
+		best_val_loss = float('inf')
+		patience = 10
+		patience_counter = 0
+
+		for epoch in range(1, self.epochs + 1):
+			current_lr = initial_lr / (1 + 0.01 * epoch)
+
+			for layer in self.layers:
+				layer.dW_acc = np.zeros_like(layer.W)
+				layer.db_acc = np.zeros_like(layer.b)
+				
+			for i, row_data in enumerate(self.train_data):
+				self.feedforward(row_data)
+				self.backprop(self.train_targets[i])
+				
+				for layer in self.layers:
+					layer.dW_acc += layer.dW
+					layer.db_acc += layer.db
+			
+			for layer in self.layers:
+				layer.learning_rate = current_lr
+				layer.dW = layer.dW_acc / len(self.train_data)
+				layer.db = layer.db_acc / len(self.train_data)
+				layer.update_weights()
+				
+			val_loss = self.compute_loss(self.val_data, self.val_targets)
+			if val_loss < best_val_loss:
+				best_val_loss = val_loss
+				patience_counter = 0
+				best_weights = [layer.W.copy() for layer in self.layers]
+				best_biases = [layer.b.copy() for layer in self.layers]
+			else:
+				patience_counter += 1
+				if patience_counter >= patience:
+					print(f"\n🛑 Early stopping at epoch {epoch}")
+					for i, layer in enumerate(self.layers):
+						layer.W = best_weights[i]
+						layer.b = best_biases[i]
+					break
+
+			self.show_loss(epoch)
+	
+		model_data = {
+			"weights": [layer.W for layer in self.layers],
+			"biases":  [layer.b for layer in self.layers]
+		}
+
+		print("> saving model './mlp.npy' to disk...")
+		np.save("mlp.npy", model_data, allow_pickle=True)
+		print("> model saved at './mlp.npy'")
