@@ -1,8 +1,9 @@
 import random
 import numpy as np
-import math
 import pandas as pd
-import csv
+import os.path
+from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH
+from .divide_dataset import DatasetDivider
 
 class Layer():
 	def __init__(self, input_size, output_size, activation="sigmoid", learning_rate=0.05):
@@ -56,6 +57,11 @@ class MLP():
 		self.init_network(layers_sizes)
 
 	def open_dataset(self, validation_split=0.2):
+		if (not os.path.isfile(self.dataset_path)):
+			print("dataset file for predicting creating it now ...")
+			divider = DatasetDivider(DATA_CSV_PATH, 0.7, TRAIN_CSV_PATH, PREDICT_CSV_PATH)
+			divider.write_datasets()
+
 		df = pd.read_csv(self.dataset_path)
 		float_df = df.select_dtypes(include=['float64'])
 		object_df = df.select_dtypes(include=['object'])
@@ -141,6 +147,8 @@ class MLP():
 		best_val_loss = float('inf')
 		patience = 10
 		patience_counter = 0
+
+		self.open_dataset()
 
 		for epoch in range(1, self.epochs + 1):
 			current_lr = initial_lr / (1 + 0.01 * epoch)

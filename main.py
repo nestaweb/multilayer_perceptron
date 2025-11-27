@@ -3,33 +3,42 @@ from src.divide_dataset import DatasetDivider
 from src.visualize_dataset import DataVizualizer
 from src.train import MLP
 from src.predict import Predictor
+from src.config import (
+	MODEL_PATH,
+	DATA_CSV_PATH,
+	TRAIN_CSV_PATH,
+	PREDICT_CSV_PATH,
+)
 import pandas as pd
 
-if __name__ == '__main__':
-	model_path = "mlp.npy"
-	data_csv_path = "dataset/data.csv"
-	train_csv_path = "dataset/training.csv"
-	predict_csv_path = "dataset/training.csv"
+def show_options():
+	print("========= MENU =========")
+	print("0. EXIT")
+	print("1. DATA VIZUALIZER")
+	print("2. MLP TRAIN")
+	print("3. MLP PREDICT")
+	print("Other. EXIT")
+	print("========================")
 
+if __name__ == '__main__':
 	while (1):
-		print("Enter your choice:")
-		choice = input()
+		show_options()
+		choice = input("Enter your choice: ")
 		if choice.isdigit():
 			choice = int(choice)
 		if (choice == 1):
-			visualizer = DataVizualizer(data_csv_path)
+			visualizer = DataVizualizer(DATA_CSV_PATH)
 			visualizer.get_infos()
-			divider = DatasetDivider(data_csv_path, 0.7, train_csv_path, predict_csv_path)
+			divider = DatasetDivider(DATA_CSV_PATH, 0.7, TRAIN_CSV_PATH, PREDICT_CSV_PATH)
 			divider.write_datasets()
 
 		elif (choice == 2):
-			mlp = MLP(train_csv_path, [30, 40, 32, 2], 200)
-			mlp.open_dataset()
+			mlp = MLP(TRAIN_CSV_PATH, [30, 40, 32, 2], 200)
 			mlp.train()
 		
 		elif (choice == 3):
-			predictor = Predictor(model_path)
-			predictions = predictor.predict_dataset(predict_csv_path)
+			predictor = Predictor(MODEL_PATH)
+			predictions = predictor.predict_dataset(PREDICT_CSV_PATH)
 
 		elif (choice == 0):
 			break
