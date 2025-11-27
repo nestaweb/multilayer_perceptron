@@ -8,6 +8,9 @@ from src.config import (
 	DATA_CSV_PATH,
 	TRAIN_CSV_PATH,
 	PREDICT_CSV_PATH,
+	EPOCHS,
+	LAYERS,
+	DATA_SPLIT
 )
 import pandas as pd
 
@@ -29,11 +32,11 @@ if __name__ == '__main__':
 		if (choice == 1):
 			visualizer = DataVizualizer(DATA_CSV_PATH)
 			visualizer.get_infos()
-			divider = DatasetDivider(DATA_CSV_PATH, 0.7, TRAIN_CSV_PATH, PREDICT_CSV_PATH)
+			divider = DatasetDivider(DATA_CSV_PATH, DATA_SPLIT, TRAIN_CSV_PATH, PREDICT_CSV_PATH)
 			divider.write_datasets()
 
 		elif (choice == 2):
-			mlp = MLP(TRAIN_CSV_PATH, [30, 40, 32, 2], 200)
+			mlp = MLP(TRAIN_CSV_PATH, LAYERS, EPOCHS)
 			mlp.train()
 		
 		elif (choice == 3):

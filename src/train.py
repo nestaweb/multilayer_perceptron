@@ -2,7 +2,7 @@ import random
 import numpy as np
 import pandas as pd
 import os.path
-from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH
+from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE
 from .divide_dataset import DatasetDivider
 
 class Layer():
@@ -35,13 +35,15 @@ class Layer():
 		return e_x / e_x.sum()
 
 	def backprop(self, delta):
+		if self.activation == "sigmoid":
+			delta = delta * (self.a * (1 - self.a))
 		# Reshape for matrix mult to avoid errors of different shape genre 16 != 2
 		delta = delta.reshape(-1, 1)
 		a_prev = self.a_prev.reshape(-1, 1)
 		
 		self.dW = a_prev @ delta.T
 		self.db = delta.ravel()
-		delta_prev = self.W @ delta
+		delta_prev = self.W @ delta 
 		return delta_prev.ravel()
 
 	def update_weights(self):
@@ -82,10 +84,10 @@ class MLP():
 			input_size = layers_sizes[i]
 			output_size = layers_sizes[i+1]
 			activation = "sigmoid"
-			learning_rate = 0.1
+			self.learning_rate = LEARNING_RATE
 			if (len(layers_sizes) - 2 == i):
 				activation = "softmax"
-			self.layers.append(Layer(input_size, output_size, activation, learning_rate))
+			self.layers.append(Layer(input_size, output_size, activation, self.learning_rate))
 
 	def feedforward(self, row_data):
 		activation = row_data
@@ -143,33 +145,40 @@ class MLP():
 		print(f'epoch {epoch}/{self.epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f} - acc: {train_acc:.2f}% - val_acc: {val_acc:.2f}%')
 
 	def train(self):
-		initial_lr = 0.1
+		current_lr = self.learning_rate
 		best_val_loss = float('inf')
-		patience = 10
+		patience = PATIENCE
 		patience_counter = 0
-
 		self.open_dataset()
-
+		batch_size = min(BATCH_SIZE, len(self.train_data))
+		min_epoch = self.epochs / 10
+		
 		for epoch in range(1, self.epochs + 1):
-			current_lr = initial_lr / (1 + 0.01 * epoch)
+			indices = np.random.permutation(len(self.train_data))
+			shuffled_data = self.train_data[indices]
+			shuffled_targets = self.train_targets[indices]
 
-			for layer in self.layers:
-				layer.dW_acc = np.zeros_like(layer.W)
-				layer.db_acc = np.zeros_like(layer.b)
-				
-			for i, row_data in enumerate(self.train_data):
-				self.feedforward(row_data)
-				self.backprop(self.train_targets[i])
-				
+			for batch_start in range(0, len(shuffled_data), batch_size):
+				batch_data = shuffled_data[batch_start:batch_start + batch_size]
+				batch_targets = shuffled_targets[batch_start:batch_start + batch_size]
+
 				for layer in self.layers:
-					layer.dW_acc += layer.dW
-					layer.db_acc += layer.db
-			
-			for layer in self.layers:
-				layer.learning_rate = current_lr
-				layer.dW = layer.dW_acc / len(self.train_data)
-				layer.db = layer.db_acc / len(self.train_data)
-				layer.update_weights()
+					layer.dW_acc = np.zeros_like(layer.W)
+					layer.db_acc = np.zeros_like(layer.b)
+
+				for row_data, target in zip(batch_data, batch_targets):
+					self.feedforward(row_data)
+					self.backprop(target)
+					
+					for layer in self.layers:
+						layer.dW_acc += layer.dW
+						layer.db_acc += layer.db
+
+				for layer in self.layers:
+					layer.learning_rate = current_lr
+					layer.dW = layer.dW_acc / len(batch_data)
+					layer.db = layer.db_acc / len(batch_data)
+					layer.update_weights()
 				
 			val_loss = self.compute_loss(self.val_data, self.val_targets)
 			if val_loss < best_val_loss:
@@ -177,7 +186,7 @@ class MLP():
 				patience_counter = 0
 				best_weights = [layer.W.copy() for layer in self.layers]
 				best_biases = [layer.b.copy() for layer in self.layers]
-			else:
+			elif (epoch >= min_epoch):
 				patience_counter += 1
 				if patience_counter >= patience:
 					print(f"\n🛑 Early stopping at epoch {epoch}")

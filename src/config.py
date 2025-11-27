@@ -9,3 +9,10 @@ DATA_CSV_PATH = os.path.join(_DATASET_DIR, "data.csv")
 TRAIN_CSV_PATH = os.path.join(_DATASET_DIR, "training.csv")
 PREDICT_CSV_PATH = os.path.join(_DATASET_DIR, "predict.csv")
 
+LEARNING_RATE = 0.03
+EPOCHS = 1500
+LAYERS = [30, 16, 8, 2]
+PATIENCE = 20
+BATCH_SIZE = 32
+
+DATA_SPLIT = 0.7
