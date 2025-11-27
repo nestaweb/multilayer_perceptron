@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import sys
 import os.path
-from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH
+from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, DATA_SPLIT
 from .divide_dataset import DatasetDivider
 
 class Predictor:
@@ -54,7 +54,7 @@ class Predictor:
 		print(f"\n📊 Loading dataset from '{dataset_path}'...")
 		if (not os.path.isfile(dataset_path)):
 			print("dataset file for predicting creating it now ...")
-			divider = DatasetDivider(DATA_CSV_PATH, 0.7, TRAIN_CSV_PATH, PREDICT_CSV_PATH)
+			divider = DatasetDivider(DATA_CSV_PATH, DATA_SPLIT, TRAIN_CSV_PATH, PREDICT_CSV_PATH)
 			divider.write_datasets()
 		df = pd.read_csv(dataset_path)
 		float_df = df.select_dtypes(include=['float64'])

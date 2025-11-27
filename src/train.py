@@ -2,7 +2,7 @@ import random
 import numpy as np
 import pandas as pd
 import os.path
-from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE
+from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE, DATA_SPLIT
 from .divide_dataset import DatasetDivider
 
 class Layer():
@@ -56,6 +56,12 @@ class MLP():
 		self.layers = []
 		self.data = []
 		self.epochs = epochs
+		self.metrics = {
+			"loss": [],
+			"val_loss": [],
+			"acc": [],
+			"val_acc": []
+		}
 		self.init_network(layers_sizes)
 
 	def open_dataset(self, validation_split=0.2):
@@ -142,7 +148,37 @@ class MLP():
 		train_acc = self.evaluate(self.train_data, self.train_targets)
 		val_acc = self.evaluate(self.val_data, self.val_targets)
 		
+		self.metrics["loss"].append(loss)
+		self.metrics["val_loss"].append(val_loss)
+		self.metrics["acc"].append(train_acc)
+		self.metrics["val_acc"].append(val_acc)
 		print(f'epoch {epoch}/{self.epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f} - acc: {train_acc:.2f}% - val_acc: {val_acc:.2f}%')
+
+	def show_curves(self):
+		import matplotlib.pyplot as plt
+
+		epochs = list(range(1, len(self.metrics["loss"]) + 1))
+
+		plt.figure(figsize=(12, 5))
+
+		plt.subplot(1, 2, 1)
+		plt.plot(epochs, self.metrics["loss"], label='Loss')
+		plt.plot(epochs, self.metrics["val_loss"], label='Val Loss')
+		plt.xlabel("Epoch")
+		plt.ylabel("Loss")
+		plt.title("Training and Validation Loss")
+		plt.legend()
+
+		plt.subplot(1, 2, 2)
+		plt.plot(epochs, self.metrics["acc"], label='Accuracy')
+		plt.plot(epochs, self.metrics["val_acc"], label='Val Accuracy')
+		plt.xlabel("Epoch")
+		plt.ylabel("Accuracy (%)")
+		plt.title("Training and Validation Accuracy")
+		plt.legend()
+
+		plt.tight_layout()
+		plt.show()
 
 	def train(self):
 		current_lr = self.learning_rate
@@ -205,3 +241,5 @@ class MLP():
 		print("> saving model './mlp.npy' to disk...")
 		np.save("mlp.npy", model_data, allow_pickle=True)
 		print("> model saved at './mlp.npy'")
+
+		self.show_curves()
