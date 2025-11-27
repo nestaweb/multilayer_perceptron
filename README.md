@@ -43,3 +43,8 @@ Each neuro will use this function to give an output based in the weights, bias a
 To this we want to apply the sigmoid function to have a value between 0 and 1. 
 
 ![neuron_function](doc/neuron_function.png)
+
+## Nesterov Momentum
+So, about Nesterov momentum, this is a thing I found really interesting in the principe of neural network. It's like, when you want to change the weights, instead of just using the previous velocity (momentum), you "look ahead" a bit, like you check where you're going before you are there. That help the training to go faster and not go too far away in wrong direction. 
+
+Basicly, it's like normal momentum but a little bit more smart because it try to anticipate the correction before doing it.
