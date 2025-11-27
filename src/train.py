@@ -242,4 +242,16 @@ class MLP():
 		np.save("mlp.npy", model_data, allow_pickle=True)
 		print("> model saved at './mlp.npy'")
 
-		self.show_curves()
+		while (1):
+			choice = input("Enter epoch number to view details, 0 to exit or c for curves: ")
+			if choice.isdigit():
+				choice = int(choice) - 1
+				if (choice >= 0 and choice <= self.epochs and choice <= len(self.metrics["loss"]) - 1):
+					print(f'epoch {choice + 1}/{self.epochs} - loss: {self.metrics["loss"][choice]:.4f} - val_loss: {self.metrics["val_loss"][choice]:.4f} - acc: {self.metrics["acc"][choice]:.2f}% - val_acc: {self.metrics["val_acc"][choice]:.2f}%')
+				else: 
+					print("This epoch doesnt exist")
+			elif (choice == "c"):
+				self.show_curves()
+			else: 
+				print("\n")
+				break
