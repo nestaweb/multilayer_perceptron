@@ -2,19 +2,23 @@ import random
 import numpy as np
 import pandas as pd
 import os.path
-from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE, DATA_SPLIT
+from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE, DATA_SPLIT, MOMENTUM, USE_NESTEROV
 from .divide_dataset import DatasetDivider
 
 class Layer():
-	def __init__(self, input_size, output_size, activation="sigmoid", learning_rate=0.05):
+	def __init__(self, input_size, output_size, activation="sigmoid", learning_rate=0.05, momentum=0.0, use_nesterov=False):
 		self.activation = activation
 		self.learning_rate = learning_rate
+		self.momentum = momentum
+		self.use_nesterov = use_nesterov
 		self.W = np.random.uniform(-0.5, 0.5, (input_size, output_size))
         
 		self.b = np.random.uniform(-0.1, 0.1, (output_size,))
         
 		self.z = None
 		self.a = None
+		self.vW = np.zeros_like(self.W)
+		self.vb = np.zeros_like(self.b)
 
 	def sigmoid(self, x):
 		x = np.clip(x, -500, 500)
@@ -47,8 +51,23 @@ class Layer():
 		return delta_prev.ravel()
 
 	def update_weights(self):
-		self.W -= self.learning_rate * self.dW
-		self.b -= self.learning_rate * self.db
+		if self.momentum <= 0:
+			self.W -= self.learning_rate * self.dW
+			self.b -= self.learning_rate * self.db
+			return
+
+		prev_vW = self.vW.copy()
+		prev_vb = self.vb.copy()
+
+		self.vW = self.momentum * self.vW - self.learning_rate * self.dW
+		self.vb = self.momentum * self.vb - self.learning_rate * self.db
+
+		if self.use_nesterov:
+			self.W += -self.momentum * prev_vW + (1 + self.momentum) * self.vW
+			self.b += -self.momentum * prev_vb + (1 + self.momentum) * self.vb
+		else:
+			self.W += self.vW
+			self.b += self.vb
 
 class MLP():
 	def __init__(self, dataset_path, layers_sizes, epochs):
@@ -93,7 +112,8 @@ class MLP():
 			self.learning_rate = LEARNING_RATE
 			if (len(layers_sizes) - 2 == i):
 				activation = "softmax"
-			self.layers.append(Layer(input_size, output_size, activation, self.learning_rate))
+			layer_momentum = MOMENTUM if USE_NESTEROV else 0.0
+			self.layers.append(Layer(input_size, output_size, activation, self.learning_rate, layer_momentum, USE_NESTEROV))
 
 	def feedforward(self, row_data):
 		activation = row_data
@@ -243,7 +263,7 @@ class MLP():
 		print("> model saved at './mlp.npy'")
 
 		while (1):
-			choice = input("Enter epoch number to view details, 0 to exit or c for curves: ")
+			choice = input("Enter epoch number to view details, Enter to exit or c for curves: ")
 			if choice.isdigit():
 				choice = int(choice) - 1
 				if (choice >= 0 and choice <= self.epochs and choice <= len(self.metrics["loss"]) - 1):
