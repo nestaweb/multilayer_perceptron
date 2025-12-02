@@ -43,6 +43,15 @@ class Predictor:
 		
 		return activation
 	
+	def ce(self, y_pred, y_true):
+		eps = 1e-15
+		if y_true == 0:
+			target_vector = np.array([1.0, 0.0])
+		else:
+			target_vector = np.array([0.0, 1.0])
+		loss = - np.sum(target_vector * np.log(y_pred) + eps)
+		return loss
+	
 	def predict_one(self, input_data):
 		output = self.forward(input_data)
 		predicted_class = np.argmax(output)
@@ -76,6 +85,7 @@ class Predictor:
 		print("=" * 80)
 		print(f"{'Index':<8} {'True':<8} {'Predicted':<12} {'Confidence':<12} {'B prob':<12} {'M prob':<12} {'Status'}")
 		print("=" * 80)
+		total_loss = 0
 		
 		for i, row_data in enumerate(data):
 			predicted_label, confidence, probs = self.predict_one(row_data)
@@ -83,6 +93,8 @@ class Predictor:
 			
 			if has_labels:
 				true_label = true_labels[i]
+				true_y = 0 if true_label == 'B' else 1
+				total_loss += self.ce(probs, true_y)
 				is_correct = (predicted_label == true_label)
 				if is_correct:
 					correct += 1
@@ -101,6 +113,7 @@ class Predictor:
 			print(f"   Correct predictions: {correct}")
 			print(f"   Wrong predictions: {len(data) - correct}")
 			print(f"   Accuracy: {accuracy:.2f}%")
+			print(f"   Total loss: {total_loss / len(data):.2f}")
 			
 			b_count = predictions.count('B')
 			m_count = predictions.count('M')

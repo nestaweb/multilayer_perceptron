@@ -12,7 +12,6 @@ from src.config import (
 	LAYERS,
 	DATA_SPLIT
 )
-import pandas as pd
 
 def show_options():
 	print("========= MENU =========")

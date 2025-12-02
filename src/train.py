@@ -2,7 +2,7 @@ import random
 import numpy as np
 import pandas as pd
 import os.path
-from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE, DATA_SPLIT, MOMENTUM, USE_NESTEROV
+from .config import DATA_CSV_PATH, PREDICT_CSV_PATH, TRAIN_CSV_PATH, LEARNING_RATE, PATIENCE, BATCH_SIZE, MOMENTUM, USE_NESTEROV
 from .divide_dataset import DatasetDivider
 
 class Layer():
@@ -105,6 +105,8 @@ class MLP():
 		self.val_targets = raw_result[split_idx:]
 
 	def init_network(self, layers_sizes):
+		if (len(layers_sizes) == 0):
+			layers_sizes = [30, 16, 8, 2]
 		for i in range(len(layers_sizes) - 1):
 			input_size = layers_sizes[i]
 			output_size = layers_sizes[i+1]
